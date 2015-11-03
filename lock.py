@@ -17,4 +17,4 @@ class Lock:
   def unlock(self):
     # FIXME should rotate anticlockwise
     self.logger.info("Unlocking " + self.name)
-    self.motor.rotate(90)
+    self.motor.rotate(-90)

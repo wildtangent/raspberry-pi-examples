@@ -48,7 +48,7 @@ class MyPiStepperMotor:
 
   def rotate(self, degrees):
     rng = self.__range_from_degrees(degrees)
-
+    reverse = False
     # check if se are going in reverse
     if rng < 0:
       reverse = True
@@ -59,7 +59,8 @@ class MyPiStepperMotor:
         for pin in range(len(self.pins)):
           if reverse:
             # Go in reverse
-            GPIO.output(self.pins[pin], self.seq[len(self.seq)-step][pin]))
+            pos = (len(self.seq)-step)-1
+            GPIO.output(self.pins[pin], self.seq[pos][pin])
           else:
             GPIO.output(self.pins[pin], self.seq[step][pin])
         time.sleep(self.wait_time)
