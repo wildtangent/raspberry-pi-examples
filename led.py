@@ -8,6 +8,7 @@ class MyPiLed:
 
   RED = 17
   YELLOW = 4
+  THREADS = []
 
   def __init__(self, pin):
     self.pin = pin
@@ -32,6 +33,7 @@ class MyPiLed:
   def blink(self, times, speed, block=False):
     if block == False:
       t = threading.Thread(target=self.__blink, args=(times, speed))
+      self.__class__.THREADS.append(t)
       t.start()
       return t # so we can synchronise threads outside of the class
     else:

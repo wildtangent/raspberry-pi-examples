@@ -6,6 +6,7 @@ from pir import MyPiPIR
 from led import MyPiLed
 from buzzer import MyPiBuzzer
 from my_logger import MyLogger
+from sms import SMSPi
 from lock import Lock
 
 class SecuritySystem:
@@ -17,26 +18,44 @@ class SecuritySystem:
   def __init__(self):
     self.pir = MyPiPIR(MyPiPIR.DEFAULT)
     self.led = MyPiLed(MyPiLed.RED)
+    self.led.off()
     self.buzzer = MyPiBuzzer(MyPiBuzzer.DEFAULT)
+    self.buzzer.off()
     self.locks = []
     self.tries = 0
     self.max_tries = 3
     self.locks.append(Lock('Vault'))
-    
+    self.sms = SMSPi() 
     self.logger = MyLogger("SecuritySystem")
     self.check_interval = self.__class__.CHECK_INTERVAL
     self.enabled = False
+    self.triggered = False
 
   def __check_code(self):
+    if self.triggered:
+      return False
     while self.tries <= self.max_tries:
       code = input("Enter security system code (Tries: " + str(self.max_tries - self.tries) + "): ")
       if str(code) == str(self.__class__.CODE):
+        self.tries = 0
+        self.triggered = False
         return True
       else:
         self.tries+=1
 
     self.logger.warn("Code entered incorrectly " + str(self.max_tries) + " times")
     self.buzzer.on()
+    self.sms.send("0060145520449","Security system triggered!")
+    self.triggered = True
+    
+    # Need special password to unlock alarm if password entered incorrectly too many times
+    while self.triggered:
+      code = input("Enter master password to reset the device: ")
+      if str(code) == "9999":
+        self.triggered = False
+        self.tries = 0
+        self.buzzer.off()
+        self.end_lockdown()
     return False
       
 
@@ -61,7 +80,7 @@ class SecuritySystem:
       if state == MyPiPIR.ACTIVATED:
         self.logger.warn("Motion detected!")
         self.buzzer.on()
-        self.led.blink(5,0.2)
+        self.__class__.THREADS.append(self.led.blink(5,0.2))
         time.sleep(1)
       elif state == MyPiPIR.DEACTIVATED:
         self.logger.info("Waiting for motion...")
@@ -69,7 +88,7 @@ class SecuritySystem:
         self.buzzer.off()
       elif state == MyPiPIR.ACTIVE:
         self.logger.warn("Motion still being detected!")
-        self.led.blink(5,0.2)
+        self.__class__.THREADS.append(self.led.blink(5,0.2))
         self.buzzer.on()
         time.sleep(1)
       elif state == MyPiPIR.INACTIVE:
@@ -83,9 +102,7 @@ class SecuritySystem:
     if self.__check_code():
       self.enabled = False
       self.end_lockdown()
-    for t in self.__class__.THREADS:
-      t.join()
-
+    self.cleanup()
 
   def lockdown(self):
     for lock in self.locks:
@@ -95,4 +112,8 @@ class SecuritySystem:
     for lock in self.locks:
       lock.unlock()
 
+
+  def cleanup(self):
+    for t in self.__class__.THREADS:
+      t.join()
 
